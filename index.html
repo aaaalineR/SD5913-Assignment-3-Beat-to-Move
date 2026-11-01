@@ -39,6 +39,7 @@
 <body>
 
   <h1>BEAT TO MOVE</h1>
+  <button id="startButton">START RHYTHM</button>
   <canvas id="game" width="800" height="360"></canvas>
   <p>Step 1 — Our runner is moving!</p>
 
@@ -52,6 +53,57 @@
     let jumpHeight = 0;
     let jumpSpeed = 0;
     const gravity = 1350;
+    
+    // Step 4A: Rhythm System
+    const bpm = 80;
+    const beatDuration = 60 / bpm;
+
+    let audioContext = null;
+    let gameStarted = false;
+    let previousBeat = -1;
+
+    const startButton = document.getElementById("startButton");
+
+    startButton.addEventListener("click", async function() {
+      if (gameStarted) return;
+
+      audioContext = new AudioContext();
+      await audioContext.resume();
+
+      gameStarted = true;
+      startButton.textContent = "PLAYING...";
+      startButton.disabled = true;
+    });
+
+    function playBeat(strongBeat) {
+      if (!audioContext || audioContext.state !== "running") {
+        return;
+      }
+
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const volume = audioContext.createGain();
+
+      oscillator.type = "sine";
+
+      oscillator.frequency.setValueAtTime(
+        strongBeat ? 880 : 600,
+        now
+      );
+
+      volume.gain.setValueAtTime(0.15, now);
+      volume.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 0.09
+      );
+
+      oscillator.connect(volume);
+      volume.connect(audioContext.destination);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.1);
+    }
+
 
     
     // Step 3: Obstacles
@@ -80,7 +132,7 @@
         event.preventDefault();
 
         // Only jump when on the ground
-        if (jumpHeight === 0 && !event.repeat) {
+        if (jumpHeight === 0 && !event.repeat && gameStarted) {
           jumpSpeed = 490;
         }
       }
@@ -90,8 +142,22 @@
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
 
-      // Move the world
-      distance += dt * 180;
+
+      // Move the world only after START
+      if (gameStarted) {
+        distance += dt * 180;
+
+        // Keep the beat aligned with game movement
+        const beatNumber = Math.floor(
+          (distance / 180) / beatDuration
+        );
+
+        if (beatNumber !== previousBeat) {
+          previousBeat = beatNumber;
+          playBeat(beatNumber % 4 === 0);
+        }
+      }
+
 
       
       // Jump physics
@@ -231,6 +297,29 @@
       );
 
       ctx.fillText(feedback, 24, 84);
+      
+      // Visual rhythm indicator
+      const beatPhase =
+        (distance / 180) % beatDuration;
+
+      const isPulsing =
+        gameStarted && beatPhase < 0.12;
+
+      ctx.fillStyle = isPulsing ? "#6ee7d2" : "#516484";
+
+      ctx.beginPath();
+      ctx.arc(745, 45, isPulsing ? 17 : 11, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "14px Arial";
+
+      ctx.fillText(
+        gameStarted ? "RHYTHM: 80 BPM" : "CLICK START RHYTHM",
+        24,
+        110
+      );
+
 
       requestAnimationFrame(draw);
     }
