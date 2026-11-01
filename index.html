@@ -53,6 +53,27 @@
     let jumpSpeed = 0;
     const gravity = 1350;
 
+    
+    // Step 3: Obstacles
+    const obstacles = [
+      { x: 755, checked: false },
+      { x: 1295, checked: false },
+      { x: 1835, checked: false },
+      { x: 2375, checked: false },
+      { x: 2915, checked: false },
+      { x: 3455, checked: false },
+      { x: 3995, checked: false },
+      { x: 4535, checked: false }
+    ];
+
+    const obstacleWidth = 28;
+    const obstacleHeight = 28;
+
+    let cleared = 0;
+    let hits = 0;
+    let feedback = "Press SPACE to avoid obstacles!";
+
+
     // Listen for the Space key
     window.addEventListener("keydown", function(event) {
       if (event.code === "Space") {
@@ -111,6 +132,54 @@
         ctx.fillRect(x, 300, 32, 4);
       }
 
+
+      // Step 3: Draw obstacles and check collisions
+      for (const obstacle of obstacles) {
+
+        // Move obstacle with the scrolling world
+        const x = obstacle.x - distance;
+        const top = 270 - obstacleHeight;
+
+        // Draw a pink triangle
+        ctx.fillStyle = "#ff8192";
+        ctx.beginPath();
+        ctx.moveTo(x, 270);
+        ctx.lineTo(x + obstacleWidth / 2, top);
+        ctx.lineTo(x + obstacleWidth, 270);
+        ctx.closePath();
+        ctx.fill();
+
+        // Approximate player collision box
+        const playerLeft = 137;
+        const playerRight = 163;
+        const playerTop = 218 - jumpHeight;
+        const playerBottom = 268 - jumpHeight;
+
+        const overlapX =
+          playerRight > x &&
+          playerLeft < x + obstacleWidth;
+
+        const overlapY =
+          playerBottom > top &&
+          playerTop < 270;
+
+        // Player hits an obstacle
+        if (!obstacle.checked && overlapX && overlapY) {
+          obstacle.checked = true;
+          hits++;
+          feedback = "HIT! Try jumping earlier!";
+        }
+
+        // Player successfully passes an obstacle
+        if (!obstacle.checked &&
+            x + obstacleWidth < playerLeft) {
+          obstacle.checked = true;
+          cleared++;
+          feedback = "CLEARED! Nice jump!";
+        }
+      }
+
+
       // Runner animation
       let bob = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 2;
       let step = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 11;
@@ -148,13 +217,20 @@
       ctx.lineTo(160 - step, 267 + bob);
 
       ctx.stroke();
-      
+
       ctx.restore();
 
       // Status
       ctx.fillStyle = "white";
       ctx.font = "16px Arial";
       ctx.fillText("RUNNING...", 24, 32);
+
+      ctx.fillText(
+        "CLEARED: " + cleared + " | HITS: " + hits,
+        24, 58
+      );
+
+      ctx.fillText(feedback, 24, 84);
 
       requestAnimationFrame(draw);
     }
