@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Beat to Move — Neon Run</title>
+  <title>Beat to Move — Night Drive Edition</title>
   <style>
     :root { color-scheme: dark; --mint: #70ffe0; --pink:#ff5ba9; --ink:#080919; }
     * { box-sizing: border-box; }
@@ -86,18 +86,18 @@
           <div class="hud-item"><span class="hud-label">GOOD</span><span id="goodValue" class="hud-value">0</span></div>
           <div class="hud-item"><span class="hud-label">HITS</span><span id="hitsValue" class="hud-value">0</span></div>
         </div>
-        <div class="hud-right"><span id="nextMove">READY?</span><span id="countdown">80 BPM · 14 obstacles</span></div>
+        <div class="hud-right"><span id="nextMove">READY?</span><span id="countdown">80 BPM · 22 musical cues</span></div>
       </div>
     </section>
     <div class="progress-track"><div id="progress"></div></div>
     <div class="bottom-line">
       <div class="help">
         <span><span class="key">SPACE</span> <span class="legend-pink">Jump</span> over spikes</span>
-        <span><span class="key">SHIFT</span> <span class="legend-mint">Slide</span> under gates</span>
+        <span><span class="key">SHIFT</span> <span class="legend-mint">Hold to slide</span> under short &amp; long gates</span>
       </div>
-      <span>Listen for the downbeat · one try per obstacle</span>
+      <span>Listen to the melody and drum accents · hold SHIFT to clear long gates</span>
     </div>
-    <p class="intro">An original synthwave-inspired soundtrack · Made with HTML, Canvas &amp; Web Audio API</p>
+    <p class="intro">NIGHT DRIVE — original composed soundtrack · HTML / Canvas / JavaScript</p>
   </main>
 
   <script>
@@ -136,28 +136,38 @@
     let previousBeat = -1;
     let gameTime = 0;
     let previousGameTime = 0;
+    // STEP 7: Actual composed soundtrack, rather than a metronome-like oscillator loop.
+    // The original STEP 6 Web Audio synthesis functions are retained below as development history.
+    const song = new Audio("nightdrive-original.ogg");
+    song.preload = "auto";
+    song.volume = 0.85;
+    const songDuration = 61.5;
+    let reachedFinish = false;
+    let shiftHeld = false;
+    let musicalOutro = false;
 
-    // STEP 3: The original obstacle positions are retained; later ones extend the level.
-    // STEP 6: 'gate' is the new obstacle that requires a Shift slide.
-    const obstacles = [
-      { x:755, type:"spike", checked:false },
-      { x:1295, type:"spike", checked:false },
-      { x:1835, type:"gate", checked:false },
-      { x:2375, type:"spike", checked:false },
-      { x:2915, type:"gate", checked:false },
-      { x:3455, type:"spike", checked:false },
-      { x:3995, type:"gate", checked:false },
-      { x:4535, type:"spike", checked:false },
-      { x:5075, type:"spike", checked:false },
-      { x:5615, type:"gate", checked:false },
-      { x:6155, type:"spike", checked:false },
-      { x:6695, type:"gate", checked:false },
-      { x:7235, type:"spike", checked:false },
-      { x:7775, type:"gate", checked:false }
+    // STEP 3: The original 755, 1295, 1835… positions are preserved in the first
+    // three events. STEP 7: level cues are now arranged as musical phrases,
+    // rather than a uniform 4-beat obstacle pattern.
+    const pattern = [
+      [3.00,"spike"], [6.00,"spike"], [9.00,"gate", "short"],
+      [12.00,"spike"], [13.50,"spike"], [15.00,"spike"], [17.25,"gate","short"],
+      [20.25,"spike"], [23.25,"gate","long"],
+      [27.00,"spike"], [28.50,"spike"], [30.00,"spike"],
+      [33.00,"gate","short"], [36.00,"spike"], [38.25,"gate","long"],
+      [42.00,"spike"], [43.50,"spike"], [45.00,"spike"],
+      [48.00,"gate","short"], [50.25,"spike"], [52.50,"spike"],
+      [54.75,"gate","long"]
     ];
+    const obstacles = pattern.map(([targetTime,type,length]) => ({
+      x: 215 + 180*targetTime,
+      targetTime, type, length: length || "normal",
+      width: type==="spike" ? 28 : (length==="long" ? 136 : 53),
+      checked:false, attempted:false
+    }));
     const obstacleWidth = 28;
     const obstacleHeight = 28;
-    const gateWidth = 45;
+    const gateWidth = 53; // Short gate; long gates override with their own width.
     let cleared = 0;
     let hits = 0;
     let feedback = "PRESS START RUN";
@@ -168,7 +178,7 @@
     let perfectHits = 0;
     let goodHits = 0;
     // STEP 6: A short slide state, triggered by Shift.
-    let slideRemaining = 0;
+    let slideRemaining = 0; // Shift must stay held for an extended gate.
     let colorEnergy = 0;
 
     // STEP 6 AUDIO — 100% original, synthesized music (no commercial recording).
@@ -252,71 +262,74 @@
       if (gameFinished) { window.location.reload(); return; }
       if (gameStarted) return;
       try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        await audioContext.resume();
-        masterVolume = audioContext.createGain();
-        masterVolume.gain.value = muted ? 0 : .44;
-        masterVolume.connect(audioContext.destination);
-        noiseBuffer = audioContext.createBuffer(1,Math.ceil(audioContext.sampleRate * .4),audioContext.sampleRate);
-        const data = noiseBuffer.getChannelData(0);
-        for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
-        audioStartTime = audioContext.currentTime + .15;
-        nextMusicStep = 0;
-        musicScheduler = setInterval(scheduleMusic,25);
-        scheduleMusic();
+        // Use the audio element as the master timeline: music and track cannot drift.
+        song.currentTime = 0;
+        song.muted = muted;
+        await song.play();
+        previousGameTime = 0;
         gameStarted = true;
         startButton.textContent = "RUNNING…";
         startButton.disabled = true;
-        feedback = "FOLLOW THE BEAT!";
+        feedback = "FEEL THE MUSIC!";
         feedbackUntil = 1.7;
       } catch (error) {
         startButton.textContent = "TRY START AGAIN";
-        console.error("Audio could not start",error);
+        nextMove.textContent = "AUDIO FAILED TO LOAD";
+        countdown.textContent = "Keep nightdrive-original.ogg beside index.html";
+        console.error("Music could not start",error);
       }
     }
     startButton.addEventListener("click",startGame);
     muteButton.addEventListener("click",function() {
       muted = !muted;
       muteButton.textContent = muted ? "SOUND OFF" : "SOUND ON";
-      if(masterVolume) masterVolume.gain.value = muted ? 0 : .44;
+      song.muted = muted;
     });
 
-    // STEP 4B: Your one-attempt rhythm judgement now accepts Space OR Shift.
+    // STEP 4B: Preserve one-attempt input judgement, but now vary the musical
+    // rhythm: three quick jumps, then a short or held Shift slide.
     window.addEventListener("keydown", function(event) {
       const isJump = event.code === "Space";
       const isSlide = event.code === "ShiftLeft" || event.code === "ShiftRight";
       if (!isJump && !isSlide) return;
       event.preventDefault();
-      if (!gameStarted || event.repeat) return;
-
+      if (!gameStarted || event.repeat || musicalOutro) return;
+      if (isJump && (jumpHeight > 0 || slideRemaining > 0)) return;
+      if (isSlide && jumpHeight > 0) return;
       const nextObstacle = obstacles.find(o => !o.attempted && !o.checked);
       if (!nextObstacle) return;
       nextObstacle.attempted = true;
-      const currentTime = distance / scrollSpeed;
-      // Preserve your original timing formula.
-      const targetTime = (nextObstacle.x - 215) / scrollSpeed;
+      const currentTime = song.currentTime;
+      const targetTime = nextObstacle.targetTime;
       const timingError = currentTime - targetTime;
       const difference = Math.abs(timingError);
       const correctMove = nextObstacle.type === (isJump ? "spike" : "gate");
       if (!correctMove) {
         nextObstacle.rating = "MISS";
-        feedback = isJump ? "WRONG MOVE — SHIFT!" : "WRONG MOVE — SPACE!";
-      } else if (difference <= .07) {
+        feedback = isJump ? "WRONG MOVE — HOLD SHIFT!" : "WRONG MOVE — SPACE!";
+      } else if (difference <= .085) {
         nextObstacle.rating = "PERFECT";
         feedback = "PERFECT!";
-        if(isJump) jumpSpeed = 570;
-        else slideRemaining = .92;
-      } else if (difference <= .16) {
+        if (isJump) jumpSpeed = 570;
+        else { slideRemaining = 2.15; shiftHeld = true; }
+      } else if (difference <= .20) {
         nextObstacle.rating = "GOOD";
         feedback = "GOOD!";
-        if(isJump) jumpSpeed = 570;
-        else slideRemaining = .92;
+        if (isJump) jumpSpeed = 570;
+        else { slideRemaining = 2.15; shiftHeld = true; }
       } else {
         nextObstacle.rating = "MISS";
         feedback = timingError < 0 ? "TOO EARLY!" : "TOO LATE!";
       }
       feedbackUntil = gameTime + .9;
     });
+    window.addEventListener("keyup",function(event) {
+      if(event.code === "ShiftLeft" || event.code === "ShiftRight") {
+        shiftHeld = false;
+        slideRemaining = 0;
+      }
+    });
+    window.addEventListener("blur",function() { shiftHeld=false; slideRemaining=0; });
 
     function roundedRect(x,y,w,h,r,fill,stroke=null,lineWidth=1) {
       ctx.beginPath(); ctx.roundRect(x,y,w,h,r);
@@ -388,11 +401,11 @@
         ctx.strokeStyle="#ffd4ea";ctx.lineWidth=1.6;ctx.stroke();
       } else {
         ctx.shadowColor="#66ffe6";ctx.shadowBlur=16;
-        roundedRect(x,201,gateWidth,34,3,"#75fce1");
+        roundedRect(x,201,o.width,34,3,"#75fce1");
         ctx.shadowBlur=0;
-        roundedRect(x+6,208,gateWidth-12,20,2,"#1a3755");
+        roundedRect(x+6,208,o.width-12,20,2,"#1a3755");
         ctx.fillStyle="#cbffef";ctx.font="bold 9px Trebuchet MS, Arial";
-        ctx.textAlign="center";ctx.fillText("SLIDE",x+gateWidth/2,195);
+        ctx.textAlign="center";ctx.fillText(o.length === "long" ? "HOLD SHIFT" : "SLIDE",x+o.width/2,195);
       }
       ctx.restore();
     }
@@ -430,7 +443,7 @@
       let dt=0;
       if(gameStarted) {
         // STEP 4A improved: audio and player movement use the SAME audio clock.
-        gameTime=Math.max(0,audioContext.currentTime-audioStartTime);
+        gameTime=song.currentTime;
         dt=Math.min(Math.max(0,gameTime-previousGameTime),.05);
         previousGameTime=gameTime;
         distance=gameTime*scrollSpeed;
@@ -443,6 +456,8 @@
         if(jumpHeight<=0) { jumpHeight=0;jumpSpeed=0; }
       }
       if(slideRemaining>0) slideRemaining=Math.max(0,slideRemaining-dt);
+      // Releasing Shift immediately ends the slide. A long gate requires holding it.
+      if(!shiftHeld) slideRemaining=0;
       drawCity(time);
       // STEP 3 original collision/cleared loop, extended for the new gate obstacle.
       for(const o of obstacles) {
@@ -452,14 +467,14 @@
         const playerLeft=137,playerRight=163;
         const playerTop=slideRemaining>0 ? 242 : 204-jumpHeight;
         const playerBottom=268-jumpHeight;
-        const width=o.type==="spike"?obstacleWidth:gateWidth;
+        const width=o.width;
         const top=o.type==="spike"?240:201;
         const bottom=o.type==="spike"?270:235;
         const overlapX=playerRight>x && playerLeft<x+width;
         const overlapY=playerBottom>top && playerTop<bottom;
         if(overlapX && overlapY) {
           o.checked=true;hits++;
-          setFeedback(o.type==="spike"?"HIT! JUMP ON THE BEAT":"HIT! SLIDE UNDER THE GATE");
+          setFeedback(o.type==="spike"?"HIT! JUMP ON THE BEAT":"HIT! HOLD SHIFT THROUGH THE GATE");
         }
         if(!o.checked && x+width<playerLeft) {
           o.checked=true;cleared++;
@@ -469,14 +484,23 @@
           else setFeedback("CLEARED!");
         }
       }
-      // STEP 5: Original game-finished logic.
+      // STEP 5 + STEP 7: Let the original composed outro finish instead of
+      // cutting the music abruptly at the last obstacle.
       const finalObstacle=obstacles[obstacles.length-1];
-      const finalWidth=finalObstacle.type==="spike"?obstacleWidth:gateWidth;
-      if(!gameFinished && obstacles.every(o=>o.checked) && finalObstacle.x-distance+finalWidth<137) {
-        gameFinished=true;gameStarted=false;
-        clearInterval(musicScheduler);
-        if(masterVolume)masterVolume.gain.setTargetAtTime(0,audioContext.currentTime,.16);
-        startButton.disabled=false;startButton.textContent="PLAY AGAIN";
+      const finalWidth=finalObstacle.width;
+      if(!reachedFinish && obstacles.every(o=>o.checked) &&
+          finalObstacle.x-distance+finalWidth<137) {
+        reachedFinish=true;
+        musicalOutro=true;
+        nextMove.textContent="FINAL CHORDS";
+        countdown.textContent="Listen to the outro…";
+        setFeedback("FINISH LINE! ENJOY THE OUTRO");
+      }
+      if(!gameFinished && song.ended) {
+        gameFinished=true;
+        gameStarted=false;
+        startButton.disabled=false;
+        startButton.textContent="PLAY AGAIN";
         setFeedback("");
         document.getElementById("hud").style.opacity="0";
       }
@@ -494,7 +518,7 @@
         ctx.fillStyle="#f7f1ff";ctx.font="bold 19px Trebuchet MS, Arial";ctx.textAlign="center";
         ctx.fillText("FEEL THE CITY",400,160);
         ctx.font="13px Trebuchet MS, Arial";ctx.fillStyle="#abfce7";
-        ctx.fillText("SPACE to jump   ·   SHIFT to slide",400,186);ctx.restore();
+        ctx.fillText("SPACE to jump · HOLD SHIFT to slide",400,186);ctx.restore();
       }
       if(gameFinished) {
         // STEP 5 original translucent overlay is deliberately preserved.
@@ -508,7 +532,7 @@
         ctx.font="bold 15px Trebuchet MS, Arial";ctx.fillStyle="#f9d4e8";
         ctx.fillText(`PERFECT ${perfectHits}    GOOD ${goodHits}    HITS ${hits}`,400,225);
         ctx.fillStyle="#81ffe3";ctx.font="14px Trebuchet MS, Arial";
-        ctx.fillText("Click PLAY AGAIN to retry",400,281);ctx.restore();
+        ctx.fillText("Music finished · Click PLAY AGAIN to retry",400,281);ctx.restore();
       }
       // Small HUD values updated outside the Canvas for better readability.
       scoreValue.textContent=String(score).padStart(4,"0");
@@ -516,12 +540,14 @@
       goodValue.textContent=goodHits;
       hitsValue.textContent=hits;
       const upcoming=obstacles.find(o=>!o.attempted&&!o.checked);
-      if(gameStarted && upcoming) {
+      if(gameStarted && upcoming && !musicalOutro) {
         nextMove.textContent=upcoming.type==="spike"?"▲  SPACE · JUMP":"▰  SHIFT · SLIDE";
-        const remaining=Math.max(0,(upcoming.x-215)/scrollSpeed-gameTime);
-        countdown.textContent=`NEXT BEAT  ${remaining.toFixed(1)}s`;
-      } else if (!gameFinished) {nextMove.textContent="READY?";countdown.textContent="80 BPM · 14 obstacles";}
-      progress.style.width=`${Math.min(100,(distance/(finalObstacle.x+110))*100)}%`;
+        const remaining=Math.max(0, upcoming.targetTime-gameTime);
+        // Approximate phrase hint, not a frame-perfect countdown: listening matters.
+        countdown.textContent = remaining > 1.35 ? "LISTEN FOR YOUR CUE" :
+          remaining > .36 ? "GET READY…" : "FEEL THE DOWNBEAT";
+      } else if (!gameFinished && !musicalOutro) {nextMove.textContent="READY?";countdown.textContent="80 BPM · 22 musical cues";}
+      progress.style.width=`${Math.min(100,(gameTime/songDuration)*100)}%`;
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);
