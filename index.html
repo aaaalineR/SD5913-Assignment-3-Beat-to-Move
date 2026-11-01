@@ -48,6 +48,22 @@
 
     let distance = 0;
     let lastTime = 0;
+    
+    let jumpHeight = 0;
+    let jumpSpeed = 0;
+    const gravity = 1350;
+
+    // Listen for the Space key
+    window.addEventListener("keydown", function(event) {
+      if (event.code === "Space") {
+        event.preventDefault();
+
+        // Only jump when on the ground
+        if (jumpHeight === 0 && !event.repeat) {
+          jumpSpeed = 490;
+        }
+      }
+    });
 
     function draw(time) {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
@@ -55,6 +71,20 @@
 
       // Move the world
       distance += dt * 180;
+
+      
+      // Jump physics
+      if (jumpSpeed !== 0 || jumpHeight > 0) {
+        jumpHeight += jumpSpeed * dt;
+        jumpSpeed -= gravity * dt;
+
+        // Stop falling when reaching the ground
+        if (jumpHeight <= 0) {
+          jumpHeight = 0;
+          jumpSpeed = 0;
+        }
+      }
+
 
       // Background
       ctx.fillStyle = "#192640";
@@ -82,8 +112,11 @@
       }
 
       // Runner animation
-      let bob = Math.sin(time * 0.015) * 2;
-      let step = Math.sin(time * 0.015) * 11;
+      let bob = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 2;
+      let step = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 11;
+
+      ctx.save();
+      ctx.translate(0, -jumpHeight);
 
       ctx.strokeStyle = "#ffd39b";
       ctx.fillStyle = "#ffd39b";
@@ -115,6 +148,8 @@
       ctx.lineTo(160 - step, 267 + bob);
 
       ctx.stroke();
+      
+      ctx.restore();
 
       // Status
       ctx.fillStyle = "white";
