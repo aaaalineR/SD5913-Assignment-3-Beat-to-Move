@@ -124,30 +124,72 @@
     let cleared = 0;
     let hits = 0;
     let feedback = "Press SPACE to avoid obstacles!";
+    
+    // Step 4B: Rhythm scoring
+    let score = 0;
+    let perfectHits = 0;
+    let goodHits = 0;
+
 
 
     // Listen for the Space key
+    
+    // Step 4B: Rhythm-controlled jumping
     window.addEventListener("keydown", function(event) {
-      if (event.code === "Space") {
-        event.preventDefault();
+      if (event.code !== "Space") return;
 
-        // Only jump when on the ground
-        if (jumpHeight === 0 && !event.repeat && gameStarted) {
-          jumpSpeed = 490;
-        }
+      event.preventDefault();
+
+      if (!gameStarted || event.repeat) return;
+
+      // Find the next obstacle that has not been attempted
+      const nextObstacle = obstacles.find(
+        obstacle => !obstacle.attempted && !obstacle.checked
+      );
+
+      if (!nextObstacle) return;
+
+      // One attempt per obstacle
+      nextObstacle.attempted = true;
+
+      // Current game time in seconds
+      const currentTime = distance / 180;
+
+      // Scheduled jump time for this obstacle
+      const targetTime = (nextObstacle.x - 215) / 180;
+
+      const timingError = currentTime - targetTime;
+      const difference = Math.abs(timingError);
+
+      if (difference <= 0.07) {
+        nextObstacle.rating = "PERFECT";
+        jumpSpeed = 570;
+        feedback = "PERFECT!";
+
+      } else if (difference <= 0.16) {
+        nextObstacle.rating = "GOOD";
+        jumpSpeed = 570;
+        feedback = "GOOD!";
+
+      } else {
+        nextObstacle.rating = "MISS";
+
+        feedback = timingError < 0
+          ? "TOO EARLY!"
+          : "TOO LATE!";
       }
     });
 
+
+      
     function draw(time) {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
 
-
-      // Move the world only after START
+      // Step 4A: Move the world and play the rhythm
       if (gameStarted) {
         distance += dt * 180;
 
-        // Keep the beat aligned with game movement
         const beatNumber = Math.floor(
           (distance / 180) / beatDuration
         );
@@ -159,7 +201,6 @@
       }
 
 
-      
       // Jump physics
       if (jumpSpeed !== 0 || jumpHeight > 0) {
         jumpHeight += jumpSpeed * dt;
@@ -239,12 +280,26 @@
         // Player successfully passes an obstacle
         if (!obstacle.checked &&
             x + obstacleWidth < playerLeft) {
+
           obstacle.checked = true;
           cleared++;
-          feedback = "CLEARED! Nice jump!";
-        }
-      }
 
+          if (obstacle.rating === "PERFECT") {
+            score += 100;
+            perfectHits++;
+            feedback = "PERFECT! +100";
+
+          } else if (obstacle.rating === "GOOD") {
+            score += 50;
+            goodHits++;
+            feedback = "GOOD! +50";
+
+          } else {
+            feedback = "CLEARED!";
+          }
+        }
+
+      } // End of obstacles loop
 
       // Runner animation
       let bob = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 2;
@@ -297,6 +352,36 @@
       );
 
       ctx.fillText(feedback, 24, 84);
+      
+      // Step 4B: Score display
+      ctx.fillStyle = "#6ee7d2";
+      ctx.font = "15px Arial";
+
+      ctx.fillText(
+        "SCORE: " + score +
+        " | PERFECT: " + perfectHits +
+        " | GOOD: " + goodHits,
+        24,
+        138
+      );
+
+      // Countdown to the next required jump
+      const upcoming = obstacles.find(
+        obstacle => !obstacle.attempted && !obstacle.checked
+      );
+
+      if (upcoming && gameStarted) {
+        const target = (upcoming.x - 215) / 180;
+        const remaining = target - distance / 180;
+
+        ctx.fillText(
+          "NEXT JUMP: " +
+          Math.max(0, remaining).toFixed(1) + "s",
+          24,
+          164
+        );
+      }
+
       
       // Visual rhythm indicator
       const beatPhase =
