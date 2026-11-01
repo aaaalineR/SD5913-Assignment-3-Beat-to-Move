@@ -1,489 +1,530 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Beat to Move</title>
-
+  <title>Beat to Move — Neon Run</title>
   <style>
+    :root { color-scheme: dark; --mint: #70ffe0; --pink:#ff5ba9; --ink:#080919; }
+    * { box-sizing: border-box; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      background: #101827;
-      color: white;
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      margin:0; min-height:100vh; padding: 18px 18px 24px;
+      color:#f6f5ff; font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+      background: radial-gradient(ellipse at 12% 2%, #302354 0%, transparent 40%),
+                  radial-gradient(ellipse at 88% 83%, #1c2453 0%, transparent 40%), #090b1c;
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
     }
-
-    h1 {
-      letter-spacing: 4px;
-    }
-
-    canvas {
-      width: 90%;
-      max-width: 800px;
-      border: 2px solid #6ee7d2;
-      border-radius: 12px;
-    }
-
-    p {
-      color: #aabbd0;
+    .shell { width: min(1240px, 100%); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
+    .brand { display:flex; flex-direction:column; gap:3px; }
+    .eyebrow { color:var(--mint); font-size:10px; font-weight:800; letter-spacing:3.5px; }
+    h1 { margin:0; font-size:clamp(26px,3.3vw,45px); font-weight:900; letter-spacing:6px; line-height:1.08;
+         text-shadow:0 0 26px #ff5ba960; }
+    h1 span { color:var(--pink); }
+    .buttons { display:flex; align-items:center; gap:9px; flex-wrap:wrap; justify-content:flex-end; }
+    button { font:inherit; cursor:pointer; border-radius:9px; transition: filter .2s, transform .2s; }
+    button:hover:not(:disabled) { filter:brightness(1.18); transform:translateY(-1px); }
+    #startButton { background:linear-gradient(105deg,#70ffe0,#8cfbe1); color:#0a1530; border:0;
+                   padding:12px 24px; font-weight:900; font-size:13px; letter-spacing:1px;
+                   box-shadow:0 0 25px #70ffe03a; }
+    #startButton:disabled { background:#292b42; color:#a6a6bc; cursor:default; box-shadow:none; }
+    #muteButton { background:#ffffff0c; border:1px solid #ffffff35; color:#f5f5ff; padding:10px 14px; font-size:12px; font-weight:700; }
+    .game-frame { width:100%; position:relative; overflow:hidden; border:1px solid #90fff386;
+                 border-radius:17px; background:#14142e; box-shadow:0 20px 55px #0008, 0 0 45px #ff5ba91b; }
+    canvas { display:block; width:100%; height:auto; aspect-ratio:20/9; }
+    .hud { position:absolute; top:17px; left:21px; right:21px; pointer-events:none; display:flex;
+           justify-content:space-between; align-items:flex-start; gap:10px; }
+    .hud-left { display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+    .hud-item { display:flex; flex-direction:column; gap:1px; text-shadow:0 2px 6px #080b20aa; }
+    .hud-label { font-size:10px; font-weight:800; letter-spacing:2px; color:#bfb9d9; }
+    .hud-value { font:800 clamp(15px,2.5vw,24px)/1.15 "Trebuchet MS",sans-serif; }
+    .hud-value.accent { color:var(--mint); }
+    .hud-right { text-align:right; display:flex; flex-direction:column; gap:4px; }
+    #nextMove { color:#fff; font-size:clamp(14px,2vw,21px); font-weight:900; letter-spacing:.7px; }
+    #countdown { color:#94ffe6; font-size:13px; font-weight:700; }
+    .bottom-line { display:flex; align-items:center; justify-content:space-between; gap:12px;
+                   font-size:12px; color:#b9b7d6; padding:13px 2px; flex-wrap:wrap; }
+    .key { display:inline-block; padding:3px 7px; border:1px solid #827baf; background:#ffffff08;
+           border-radius:5px; color:white; font-weight:800; font-size:11px; }
+    .help { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+    .legend-pink { color:#ff8fc2; } .legend-mint { color:#7affe4; }
+    .progress-track { height:3px; background:#38304f; border-radius:4px; overflow:hidden; margin-top:-3px; }
+    #progress { height:100%; width:0%; background:linear-gradient(90deg,var(--pink),var(--mint)); transition:width .1s linear; }
+    .intro { text-align:center; color:#b2abc8; font-size:12px; line-height:1.5; margin:12px 0 0; }
+    @media(max-width:650px) {
+      body { padding:12px 8px; justify-content:flex-start; }
+      .topbar { flex-direction:column; align-items:flex-start; }
+      h1 { letter-spacing:3px; } .buttons { justify-content:flex-start; }
+      #startButton { padding:10px 17px; }
+      .hud { top:7px; left:9px; right:9px; } .hud-left { gap:9px; }
+      .hud-label { font-size:7px; letter-spacing:.5px; } .hud-value { font-size:12px; }
+      #nextMove { font-size:11px; } #countdown { font-size:9px; }
+      .game-frame { border-radius:10px; }
     }
   </style>
 </head>
-
 <body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="eyebrow">SD5913 · INTERACTIVE EXPERIENCE</span>
+        <h1>BEAT <span>TO</span> MOVE</h1>
+      </div>
+      <div class="buttons">
+        <button id="muteButton" aria-label="Toggle music">SOUND ON</button>
+        <button id="startButton">START RUN</button>
+      </div>
+    </header>
 
-  <h1>BEAT TO MOVE</h1>
-  <button id="startButton">START RHYTHM</button>
-  <canvas id="game" width="800" height="360"></canvas>
-  <p>Step 1 — Our runner is moving!</p>
+    <section class="game-frame" aria-label="Beat to Move game">
+      <!-- Original Canvas preserved, now rendered in high resolution -->
+      <canvas id="game" width="1200" height="540"></canvas>
+      <div id="hud" class="hud">
+        <div class="hud-left">
+          <div class="hud-item"><span class="hud-label">SCORE</span><span id="scoreValue" class="hud-value accent">0000</span></div>
+          <div class="hud-item"><span class="hud-label">PERFECT</span><span id="perfectValue" class="hud-value">0</span></div>
+          <div class="hud-item"><span class="hud-label">GOOD</span><span id="goodValue" class="hud-value">0</span></div>
+          <div class="hud-item"><span class="hud-label">HITS</span><span id="hitsValue" class="hud-value">0</span></div>
+        </div>
+        <div class="hud-right"><span id="nextMove">READY?</span><span id="countdown">80 BPM · 14 obstacles</span></div>
+      </div>
+    </section>
+    <div class="progress-track"><div id="progress"></div></div>
+    <div class="bottom-line">
+      <div class="help">
+        <span><span class="key">SPACE</span> <span class="legend-pink">Jump</span> over spikes</span>
+        <span><span class="key">SHIFT</span> <span class="legend-mint">Slide</span> under gates</span>
+      </div>
+      <span>Listen for the downbeat · one try per obstacle</span>
+    </div>
+    <p class="intro">An original synthwave-inspired soundtrack · Made with HTML, Canvas &amp; Web Audio API</p>
+  </main>
 
   <script>
+    // STEP 1: The original canvas runner and scrolling distance are retained.
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
+    const scoreValue = document.getElementById("scoreValue");
+    const perfectValue = document.getElementById("perfectValue");
+    const goodValue = document.getElementById("goodValue");
+    const hitsValue = document.getElementById("hitsValue");
+    const nextMove = document.getElementById("nextMove");
+    const countdown = document.getElementById("countdown");
+    const progress = document.getElementById("progress");
+    const startButton = document.getElementById("startButton");
+    const muteButton = document.getElementById("muteButton");
 
     let distance = 0;
     let lastTime = 0;
-    
     let jumpHeight = 0;
     let jumpSpeed = 0;
     const gravity = 1350;
-    
-    // Step 4A: Rhythm System
+
+    // STEP 4A: Rhythm System — same 80 BPM and 180 px/second as your version.
     const bpm = 80;
     const beatDuration = 60 / bpm;
-
+    const scrollSpeed = 180;
     let audioContext = null;
+    let audioStartTime = 0;
+    let masterVolume = null;
+    let musicScheduler = null;
+    let nextMusicStep = 0;
+    let noiseBuffer = null;
+    let muted = false;
     let gameStarted = false;
     let gameFinished = false;
     let previousBeat = -1;
+    let gameTime = 0;
+    let previousGameTime = 0;
 
-    const startButton = document.getElementById("startButton");
-
-    startButton.addEventListener("click", async function() {
-      if (gameFinished) {
-        window.location.reload();
-        return;
-      }
-
-      if (gameStarted) return;
-
-      audioContext = new AudioContext();
-      await audioContext.resume();
-
-      gameStarted = true;
-      startButton.textContent = "PLAYING...";
-      startButton.disabled = true;
-    });
-
-    function playBeat(strongBeat) {
-      if (!audioContext || audioContext.state !== "running") {
-        return;
-      }
-
-      const now = audioContext.currentTime;
-      const oscillator = audioContext.createOscillator();
-      const volume = audioContext.createGain();
-
-      oscillator.type = "sine";
-
-      oscillator.frequency.setValueAtTime(
-        strongBeat ? 880 : 600,
-        now
-      );
-
-      volume.gain.setValueAtTime(0.15, now);
-      volume.gain.exponentialRampToValueAtTime(
-        0.001,
-        now + 0.09
-      );
-
-      oscillator.connect(volume);
-      volume.connect(audioContext.destination);
-
-      oscillator.start(now);
-      oscillator.stop(now + 0.1);
-    }
-
-
-    
-    // Step 3: Obstacles
+    // STEP 3: The original obstacle positions are retained; later ones extend the level.
+    // STEP 6: 'gate' is the new obstacle that requires a Shift slide.
     const obstacles = [
-      { x: 755, checked: false },
-      { x: 1295, checked: false },
-      { x: 1835, checked: false },
-      { x: 2375, checked: false },
-      { x: 2915, checked: false },
-      { x: 3455, checked: false },
-      { x: 3995, checked: false },
-      { x: 4535, checked: false }
+      { x:755, type:"spike", checked:false },
+      { x:1295, type:"spike", checked:false },
+      { x:1835, type:"gate", checked:false },
+      { x:2375, type:"spike", checked:false },
+      { x:2915, type:"gate", checked:false },
+      { x:3455, type:"spike", checked:false },
+      { x:3995, type:"gate", checked:false },
+      { x:4535, type:"spike", checked:false },
+      { x:5075, type:"spike", checked:false },
+      { x:5615, type:"gate", checked:false },
+      { x:6155, type:"spike", checked:false },
+      { x:6695, type:"gate", checked:false },
+      { x:7235, type:"spike", checked:false },
+      { x:7775, type:"gate", checked:false }
     ];
-
     const obstacleWidth = 28;
     const obstacleHeight = 28;
-
+    const gateWidth = 45;
     let cleared = 0;
     let hits = 0;
-    let feedback = "Press SPACE to avoid obstacles!";
-    
-    // Step 4B: Rhythm scoring
+    let feedback = "PRESS START RUN";
+    let feedbackUntil = 0;
+
+    // STEP 4B: Your original rhythm scoring is preserved.
     let score = 0;
     let perfectHits = 0;
     let goodHits = 0;
+    // STEP 6: A short slide state, triggered by Shift.
+    let slideRemaining = 0;
+    let colorEnergy = 0;
 
-
-
-    // Listen for the Space key
-    
-    // Step 4B: Rhythm-controlled jumping
-    window.addEventListener("keydown", function(event) {
-      if (event.code !== "Space") return;
-
-      event.preventDefault();
-
-      if (!gameStarted || event.repeat) return;
-
-      // Find the next obstacle that has not been attempted
-      const nextObstacle = obstacles.find(
-        obstacle => !obstacle.attempted && !obstacle.checked
-      );
-
-      if (!nextObstacle) return;
-
-      // One attempt per obstacle
-      nextObstacle.attempted = true;
-
-      // Current game time in seconds
-      const currentTime = distance / 180;
-
-      // Scheduled jump time for this obstacle
-      const targetTime = (nextObstacle.x - 215) / 180;
-
-      const timingError = currentTime - targetTime;
-      const difference = Math.abs(timingError);
-
-      if (difference <= 0.07) {
-        nextObstacle.rating = "PERFECT";
-        jumpSpeed = 570;
-        feedback = "PERFECT!";
-
-      } else if (difference <= 0.16) {
-        nextObstacle.rating = "GOOD";
-        jumpSpeed = 570;
-        feedback = "GOOD!";
-
-      } else {
-        nextObstacle.rating = "MISS";
-
-        feedback = timingError < 0
-          ? "TOO EARLY!"
-          : "TOO LATE!";
+    // STEP 6 AUDIO — 100% original, synthesized music (no commercial recording).
+    // The four-bar harmonic loop is Cm / Ab / Eb / Bb with our own short melody.
+    const bassNotes = [65.41, 51.91, 77.78, 58.27];
+    const chords = [
+      [130.81,155.56,196.00],
+      [103.83,130.81,155.56],
+      [155.56,196.00,233.08],
+      [116.54,146.83,174.61]
+    ];
+    const leadNotes = [
+      392, 0, 466.16, 392, 0, 311.13, 0, 349.23,
+      392, 0, 311.13, 0, 349.23, 0, 466.16, 0,
+      466.16, 0, 392, 0, 349.23, 0, 311.13, 0,
+      349.23, 0, 392, 466.16, 0, 392, 0, 311.13
+    ];
+    function tone(freq, at, duration, level, wave="triangle", release=0.09) {
+      if (!audioContext || !freq) return;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.type = wave;
+      osc.frequency.setValueAtTime(freq, at);
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.linearRampToValueAtTime(level, at + 0.012);
+      gain.gain.setValueAtTime(level * 0.65, at + Math.min(0.08,duration*0.3));
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + duration + release);
+      osc.connect(gain); gain.connect(masterVolume);
+      osc.start(at); osc.stop(at + duration + release + 0.02);
+    }
+    function playKick(at) {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(135, at);
+      osc.frequency.exponentialRampToValueAtTime(48, at + .16);
+      gain.gain.setValueAtTime(.24, at);
+      gain.gain.exponentialRampToValueAtTime(.0001, at + .22);
+      osc.connect(gain); gain.connect(masterVolume);
+      osc.start(at); osc.stop(at + .23);
+    }
+    function noiseHit(at, duration, level, highpass) {
+      const source = audioContext.createBufferSource();
+      const filter = audioContext.createBiquadFilter();
+      const gain = audioContext.createGain();
+      source.buffer = noiseBuffer;
+      filter.type = "highpass"; filter.frequency.value = highpass;
+      gain.gain.setValueAtTime(level,at);
+      gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
+      source.connect(filter); filter.connect(gain); gain.connect(masterVolume);
+      source.start(at); source.stop(at + duration);
+    }
+    // Keep the function name from STEP 4A: now it's a fuller rhythm section.
+    function playBeat(strongBeat, at) {
+      playKick(at);
+      if (strongBeat) tone(110,at,.2,.043,"sawtooth");
+    }
+    function scheduleMusicStep(step, at) {
+      const eighth = step % 8;
+      const bar = Math.floor(step/8) % 4;
+      if (step % 2 === 0) playBeat(eighth === 0, at);
+      if (eighth === 2 || eighth === 6) noiseHit(at,.15,.11,900);
+      noiseHit(at,.055,step%2===0?.026:.045,4500);
+      if (step % 2 === 0) tone(bassNotes[bar],at,.26,.115,"sawtooth",.08);
+      if (eighth === 0) {
+        for (const f of chords[bar]) tone(f,at,1.2,.025,"triangle",.65);
       }
+      const lead = leadNotes[step % leadNotes.length];
+      if (lead) tone(lead,at,.19,.055,"square",.09);
+    }
+    function scheduleMusic() {
+      if (!gameStarted || !audioContext) return;
+      const now = audioContext.currentTime;
+      while (audioStartTime + nextMusicStep * beatDuration/2 < now + .16) {
+        const at = audioStartTime + nextMusicStep * beatDuration/2;
+        if (at > now - .04) scheduleMusicStep(nextMusicStep,at);
+        nextMusicStep++;
+      }
+    }
+    async function startGame() {
+      if (gameFinished) { window.location.reload(); return; }
+      if (gameStarted) return;
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await audioContext.resume();
+        masterVolume = audioContext.createGain();
+        masterVolume.gain.value = muted ? 0 : .44;
+        masterVolume.connect(audioContext.destination);
+        noiseBuffer = audioContext.createBuffer(1,Math.ceil(audioContext.sampleRate * .4),audioContext.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+        audioStartTime = audioContext.currentTime + .15;
+        nextMusicStep = 0;
+        musicScheduler = setInterval(scheduleMusic,25);
+        scheduleMusic();
+        gameStarted = true;
+        startButton.textContent = "RUNNING…";
+        startButton.disabled = true;
+        feedback = "FOLLOW THE BEAT!";
+        feedbackUntil = 1.7;
+      } catch (error) {
+        startButton.textContent = "TRY START AGAIN";
+        console.error("Audio could not start",error);
+      }
+    }
+    startButton.addEventListener("click",startGame);
+    muteButton.addEventListener("click",function() {
+      muted = !muted;
+      muteButton.textContent = muted ? "SOUND OFF" : "SOUND ON";
+      if(masterVolume) masterVolume.gain.value = muted ? 0 : .44;
     });
 
+    // STEP 4B: Your one-attempt rhythm judgement now accepts Space OR Shift.
+    window.addEventListener("keydown", function(event) {
+      const isJump = event.code === "Space";
+      const isSlide = event.code === "ShiftLeft" || event.code === "ShiftRight";
+      if (!isJump && !isSlide) return;
+      event.preventDefault();
+      if (!gameStarted || event.repeat) return;
 
-      
-    function draw(time) {
-      const dt = Math.min((time - lastTime) / 1000, 0.05);
-      lastTime = time;
+      const nextObstacle = obstacles.find(o => !o.attempted && !o.checked);
+      if (!nextObstacle) return;
+      nextObstacle.attempted = true;
+      const currentTime = distance / scrollSpeed;
+      // Preserve your original timing formula.
+      const targetTime = (nextObstacle.x - 215) / scrollSpeed;
+      const timingError = currentTime - targetTime;
+      const difference = Math.abs(timingError);
+      const correctMove = nextObstacle.type === (isJump ? "spike" : "gate");
+      if (!correctMove) {
+        nextObstacle.rating = "MISS";
+        feedback = isJump ? "WRONG MOVE — SHIFT!" : "WRONG MOVE — SPACE!";
+      } else if (difference <= .07) {
+        nextObstacle.rating = "PERFECT";
+        feedback = "PERFECT!";
+        if(isJump) jumpSpeed = 570;
+        else slideRemaining = .92;
+      } else if (difference <= .16) {
+        nextObstacle.rating = "GOOD";
+        feedback = "GOOD!";
+        if(isJump) jumpSpeed = 570;
+        else slideRemaining = .92;
+      } else {
+        nextObstacle.rating = "MISS";
+        feedback = timingError < 0 ? "TOO EARLY!" : "TOO LATE!";
+      }
+      feedbackUntil = gameTime + .9;
+    });
 
-      // Step 4A: Move the world and play the rhythm
-      if (gameStarted) {
-        distance += dt * 180;
-
-        const beatNumber = Math.floor(
-          (distance / 180) / beatDuration
-        );
-
-        if (beatNumber !== previousBeat) {
-          previousBeat = beatNumber;
-          playBeat(beatNumber % 4 === 0);
+    function roundedRect(x,y,w,h,r,fill,stroke=null,lineWidth=1) {
+      ctx.beginPath(); ctx.roundRect(x,y,w,h,r);
+      if(fill){ctx.fillStyle=fill;ctx.fill();}
+      if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lineWidth;ctx.stroke();}
+    }
+    function drawCity(time) {
+      const pulse = gameStarted && ((gameTime % beatDuration) < .105);
+      const reaction = Math.min(1,(perfectHits + goodHits * .5)/7);
+      const gradient=ctx.createLinearGradient(0,0,0,270);
+      gradient.addColorStop(0, reaction > .6 ? "#28173f" : "#101632");
+      gradient.addColorStop(.65, "#3a2156");
+      gradient.addColorStop(1, "#bf3e7b");
+      ctx.fillStyle=gradient; ctx.fillRect(0,0,800,360);
+      // Skyline sun and haze
+      ctx.save();ctx.shadowColor="#ff5cae";ctx.shadowBlur=40;
+      ctx.fillStyle="#fc79af";ctx.beginPath();ctx.arc(560,164,70,0,Math.PI*2);ctx.fill();ctx.restore();
+      ctx.fillStyle="#331a51";
+      for(let j=0;j<5;j++) ctx.fillRect(492,157+j*12,136,3+j*1.7);
+      // Twinkling stars
+      for(let i=0;i<32;i++) {
+        const x=(i*157+29)%800,y=(i*47+17)%180;
+        ctx.fillStyle=i%3===0?"#ffe0f1cc":"#e3c4ff88";
+        ctx.fillRect(x,y,1.5,1.5);
+      }
+      // Far city buildings, inherited from the scrolling-city idea
+      for(let i=0;i<18;i++) {
+        const x=((i*76-distance*.19)%1450+1450)%1450-120;
+        const h=70+(i*37)%92;
+        ctx.fillStyle=i%3===0?"#261f52":"#211d45";
+        ctx.fillRect(x,270-h,56,h);
+        ctx.fillStyle=pulse?"#f37ab8a8":"#ba69a767";
+        for(let yy=270-h+12;yy<258;yy+=17) {
+          for(let xx=x+9;xx<x+50;xx+=17) if((i+yy+xx)%3<2)ctx.fillRect(xx,yy,4,5);
         }
       }
-
-
-      // Jump physics
-      if (jumpSpeed !== 0 || jumpHeight > 0) {
-        jumpHeight += jumpSpeed * dt;
-        jumpSpeed -= gravity * dt;
-
-        // Stop falling when reaching the ground
-        if (jumpHeight <= 0) {
-          jumpHeight = 0;
-          jumpSpeed = 0;
+      // Foreground city silhouettes
+      for(let i=0;i<12;i++) {
+        const x=((i*112-distance*.34)%1500+1500)%1500-120;
+        const h=54+(i*29)%73;
+        ctx.fillStyle="#14152e";
+        ctx.fillRect(x,270-h,84,h);
+        ctx.fillStyle="#e652a670";
+        for(let yy=270-h+14; yy<264; yy+=21) {
+          for(let xx=x+12;xx<x+78;xx+=18)if((i+xx+yy)%4!==0)ctx.fillRect(xx,yy,5,6);
         }
       }
-
-
-      // Background
-      ctx.fillStyle = "#192640";
-      ctx.fillRect(0, 0, 800, 360);
-
-      // Moving city buildings
-      ctx.fillStyle = "#304363";
-
-      for (let i = 0; i < 12; i++) {
-        let x = ((i * 100 - distance * 0.25) % 1200 + 1200) % 1200 - 100;
-        let height = 65 + (i % 4) * 18;
-        ctx.fillRect(x, 270 - height, 65, height);
+      // The original ground, now a neon highway
+      const floor=ctx.createLinearGradient(0,270,0,360);
+      floor.addColorStop(0,"#242046");floor.addColorStop(1,"#101426");
+      ctx.fillStyle=floor;ctx.fillRect(0,270,800,90);
+      ctx.fillStyle=pulse?"#b0fff6":"#ff6db5";ctx.fillRect(0,268,800,3);
+      ctx.strokeStyle="#6d57a750";ctx.lineWidth=1;
+      for(let i=0;i<13;i++) {
+        const x=i*77-(distance%77);
+        ctx.beginPath();ctx.moveTo(x,270);ctx.lineTo(400+(x-400)*2.0,360);ctx.stroke();
       }
-
-      // Ground
-      ctx.fillStyle = "#435878";
-      ctx.fillRect(0, 270, 800, 90);
-
-      // Moving ground lines
-      ctx.fillStyle = "#8ba5c5";
-
-      for (let i = 0; i < 18; i++) {
-        let x = i * 62 - (distance % 62);
-        ctx.fillRect(x, 300, 32, 4);
-      }
-
-
-      // Step 3: Draw obstacles and check collisions
-      for (const obstacle of obstacles) {
-
-        // Move obstacle with the scrolling world
-        const x = obstacle.x - distance;
-        const top = 270 - obstacleHeight;
-
-        // Draw a pink triangle
-        ctx.fillStyle = "#ff8192";
-        ctx.beginPath();
-        ctx.moveTo(x, 270);
-        ctx.lineTo(x + obstacleWidth / 2, top);
-        ctx.lineTo(x + obstacleWidth, 270);
-        ctx.closePath();
-        ctx.fill();
-
-        // Approximate player collision box
-        const playerLeft = 137;
-        const playerRight = 163;
-        const playerTop = 218 - jumpHeight;
-        const playerBottom = 268 - jumpHeight;
-
-        const overlapX =
-          playerRight > x &&
-          playerLeft < x + obstacleWidth;
-
-        const overlapY =
-          playerBottom > top &&
-          playerTop < 270;
-
-        // Player hits an obstacle
-        if (!obstacle.checked && overlapX && overlapY) {
-          obstacle.checked = true;
-          hits++;
-          feedback = "HIT! Try jumping earlier!";
-        }
-
-        // Player successfully passes an obstacle
-        if (!obstacle.checked &&
-            x + obstacleWidth < playerLeft) {
-
-          obstacle.checked = true;
-          cleared++;
-
-          if (obstacle.rating === "PERFECT") {
-            score += 100;
-            perfectHits++;
-            feedback = "PERFECT! +100";
-
-          } else if (obstacle.rating === "GOOD") {
-            score += 50;
-            goodHits++;
-            feedback = "GOOD! +50";
-
-          } else {
-            feedback = "CLEARED!";
-          }
-        }
-
-      } // End of obstacles loop
-
-      
-      // Step 5: Check whether the run is complete
-      const finalObstacle = obstacles[obstacles.length - 1];
-
-      const finalObstacleRight =
-        finalObstacle.x - distance + obstacleWidth;
-
-      if (
-        !gameFinished &&
-        obstacles.every(obstacle => obstacle.checked) &&
-        finalObstacleRight < 137
-      ) {
-        gameFinished = true;
-        gameStarted = false;
-
-        startButton.disabled = false;
-        startButton.textContent = "PLAY AGAIN";
-      }
-
-      // Runner animation
-      let bob = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 2;
-      let step = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 11;
-
+      for(let y=288;y<360;y+=18){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(800,y);ctx.stroke();}
+      // STEP 6 optional Reactive World: accurate timing adds a subtle pulse
+      if(reaction>.05 && pulse) { ctx.fillStyle=`rgba(112,255,224,${.012+reaction*.045})`;ctx.fillRect(0,0,800,270); }
+    }
+    function drawObstacle(o,x) {
       ctx.save();
-      ctx.translate(0, -jumpHeight);
-
-      ctx.strokeStyle = "#ffd39b";
-      ctx.fillStyle = "#ffd39b";
-      ctx.lineWidth = 6;
-      ctx.lineCap = "round";
-
-      // Head
-      ctx.beginPath();
-      ctx.arc(150, 216 + bob, 12, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Body
-      ctx.beginPath();
-      ctx.moveTo(150, 229 + bob);
-      ctx.lineTo(150, 249 + bob);
-
-      // Arms
-      ctx.moveTo(150, 235 + bob);
-      ctx.lineTo(139 + step * 0.5, 244 + bob);
-
-      ctx.moveTo(150, 235 + bob);
-      ctx.lineTo(161 - step * 0.5, 244 + bob);
-
-      // Legs
-      ctx.moveTo(150, 249 + bob);
-      ctx.lineTo(140 + step, 267 + bob);
-
-      ctx.moveTo(150, 249 + bob);
-      ctx.lineTo(160 - step, 267 + bob);
-
-      ctx.stroke();
-
+      if(o.type === "spike") {
+        ctx.shadowColor="#ff4a9e";ctx.shadowBlur=12;
+        ctx.fillStyle="#ff70b7";
+        ctx.beginPath();ctx.moveTo(x,270);ctx.lineTo(x+obstacleWidth/2,240);ctx.lineTo(x+obstacleWidth,270);ctx.closePath();ctx.fill();
+        ctx.shadowBlur=0;
+        ctx.strokeStyle="#ffd4ea";ctx.lineWidth=1.6;ctx.stroke();
+      } else {
+        ctx.shadowColor="#66ffe6";ctx.shadowBlur=16;
+        roundedRect(x,201,gateWidth,34,3,"#75fce1");
+        ctx.shadowBlur=0;
+        roundedRect(x+6,208,gateWidth-12,20,2,"#1a3755");
+        ctx.fillStyle="#cbffef";ctx.font="bold 9px Trebuchet MS, Arial";
+        ctx.textAlign="center";ctx.fillText("SLIDE",x+gateWidth/2,195);
+      }
       ctx.restore();
-
-      // Status
-      ctx.fillStyle = "white";
-      ctx.font = "16px Arial";
-      ctx.fillText("RUNNING...", 24, 32);
-
-      ctx.fillText(
-        "CLEARED: " + cleared + " | HITS: " + hits,
-        24, 58
-      );
-
-      ctx.fillText(feedback, 24, 84);
-      
-      // Step 4B: Score display
-      ctx.fillStyle = "#6ee7d2";
-      ctx.font = "15px Arial";
-
-      ctx.fillText(
-        "SCORE: " + score +
-        " | PERFECT: " + perfectHits +
-        " | GOOD: " + goodHits,
-        24,
-        138
-      );
-
-      // Countdown to the next required jump
-      const upcoming = obstacles.find(
-        obstacle => !obstacle.attempted && !obstacle.checked
-      );
-
-      if (upcoming && gameStarted) {
-        const target = (upcoming.x - 215) / 180;
-        const remaining = target - distance / 180;
-
-        ctx.fillText(
-          "NEXT JUMP: " +
-          Math.max(0, remaining).toFixed(1) + "s",
-          24,
-          164
-        );
+    }
+    function drawRunner(time) {
+      const sliding=slideRemaining>0;
+      const bob = jumpHeight>0 || sliding ? 0 : Math.sin(time*.015)*2;
+      const step = jumpHeight>0 || sliding ? 0 : Math.sin(time*.015)*11;
+      ctx.save();ctx.translate(0,-jumpHeight);
+      ctx.strokeStyle="#ffe1aa";ctx.fillStyle="#ffe1aa";ctx.lineWidth=6;ctx.lineCap="round";
+      ctx.shadowColor="#ffca95";ctx.shadowBlur=12;
+      if(sliding) {
+        ctx.beginPath();ctx.arc(145,246,9,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.moveTo(151,251);ctx.lineTo(166,257);ctx.lineTo(180,265);
+        ctx.moveTo(152,253);ctx.lineTo(143,268);ctx.moveTo(164,256);ctx.lineTo(173,269);
+        ctx.stroke();
+        ctx.strokeStyle="#70ffe0";ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(114,268);ctx.lineTo(135,268);ctx.stroke();
+      } else {
+        // STEP 1 and STEP 2 original stick-figure runner shape, retained.
+        ctx.beginPath();ctx.arc(150,216+bob,12,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.moveTo(150,229+bob);ctx.lineTo(150,249+bob);
+        ctx.moveTo(150,235+bob);ctx.lineTo(139+step*.5,244+bob);
+        ctx.moveTo(150,235+bob);ctx.lineTo(161-step*.5,244+bob);
+        ctx.moveTo(150,249+bob);ctx.lineTo(140+step,267+bob);
+        ctx.moveTo(150,249+bob);ctx.lineTo(160-step,267+bob);
+        ctx.stroke();
       }
-
-      
-      // Visual rhythm indicator
-      const beatPhase =
-        (distance / 180) % beatDuration;
-
-      const isPulsing =
-        gameStarted && beatPhase < 0.12;
-
-      ctx.fillStyle = isPulsing ? "#6ee7d2" : "#516484";
-
-      ctx.beginPath();
-      ctx.arc(745, 45, isPulsing ? 17 : 11, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "14px Arial";
-
-      ctx.fillText(
-        gameStarted ? "RHYTHM: 80 BPM" : "CLICK START RHYTHM",
-        24,
-        110
-      );
-
-
-      // Step 5: Game complete screen
-      if (gameFinished) {
-        ctx.save();
-
-        // Dark overlay
-        ctx.fillStyle = "rgba(10, 18, 35, 0.94)";
-        ctx.fillRect(0, 0, 800, 360);
-
-        ctx.textAlign = "center";
-
-        // Title
-        ctx.fillStyle = "#6ee7d2";
-        ctx.font = "bold 34px Arial";
-        ctx.fillText("RUN COMPLETE!", 400, 85);
-
-        // Final score
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 27px Arial";
-        ctx.fillText(
-          "SCORE: " + score + " / " +
-          (obstacles.length * 100),
-          400,
-          140
-        );
-
-        // Result breakdown
-        ctx.font = "17px Arial";
-        ctx.fillText(
-          "PERFECT: " + perfectHits +
-          "    GOOD: " + goodHits +
-          "    HITS: " + hits,
-          400,
-          195
-        );
-
-        // Restart instruction
-        ctx.fillStyle = "#6ee7d2";
-        ctx.font = "18px Arial";
-        ctx.fillText(
-          "Click PLAY AGAIN above to retry!",
-          400,
-          265
-        );
-
-        ctx.restore();
+      ctx.restore();
+    }
+    function setFeedback(message) {feedback=message;feedbackUntil=gameTime+1.0;}
+    function draw(time) {
+      ctx.setTransform(1.5,0,0,1.5,0,0);
+      const rawDt=Math.min(Math.max(0,(time-lastTime)/1000),.05);
+      lastTime=time;
+      let dt=0;
+      if(gameStarted) {
+        // STEP 4A improved: audio and player movement use the SAME audio clock.
+        gameTime=Math.max(0,audioContext.currentTime-audioStartTime);
+        dt=Math.min(Math.max(0,gameTime-previousGameTime),.05);
+        previousGameTime=gameTime;
+        distance=gameTime*scrollSpeed;
+        previousBeat=Math.floor(gameTime/beatDuration);
       }
-
+      // STEP 2 original jump physics.
+      if(jumpSpeed!==0 || jumpHeight>0) {
+        jumpHeight+=jumpSpeed*dt;
+        jumpSpeed-=gravity*dt;
+        if(jumpHeight<=0) { jumpHeight=0;jumpSpeed=0; }
+      }
+      if(slideRemaining>0) slideRemaining=Math.max(0,slideRemaining-dt);
+      drawCity(time);
+      // STEP 3 original collision/cleared loop, extended for the new gate obstacle.
+      for(const o of obstacles) {
+        const x=o.x-distance;
+        if(x>-80 && x<860) drawObstacle(o,x);
+        if(o.checked || !gameStarted) continue;
+        const playerLeft=137,playerRight=163;
+        const playerTop=slideRemaining>0 ? 242 : 204-jumpHeight;
+        const playerBottom=268-jumpHeight;
+        const width=o.type==="spike"?obstacleWidth:gateWidth;
+        const top=o.type==="spike"?240:201;
+        const bottom=o.type==="spike"?270:235;
+        const overlapX=playerRight>x && playerLeft<x+width;
+        const overlapY=playerBottom>top && playerTop<bottom;
+        if(overlapX && overlapY) {
+          o.checked=true;hits++;
+          setFeedback(o.type==="spike"?"HIT! JUMP ON THE BEAT":"HIT! SLIDE UNDER THE GATE");
+        }
+        if(!o.checked && x+width<playerLeft) {
+          o.checked=true;cleared++;
+          // STEP 4B original score rules preserved.
+          if(o.rating==="PERFECT") {score+=100;perfectHits++;colorEnergy++;setFeedback("PERFECT! +100");}
+          else if(o.rating==="GOOD") {score+=50;goodHits++;setFeedback("GOOD! +50");}
+          else setFeedback("CLEARED!");
+        }
+      }
+      // STEP 5: Original game-finished logic.
+      const finalObstacle=obstacles[obstacles.length-1];
+      const finalWidth=finalObstacle.type==="spike"?obstacleWidth:gateWidth;
+      if(!gameFinished && obstacles.every(o=>o.checked) && finalObstacle.x-distance+finalWidth<137) {
+        gameFinished=true;gameStarted=false;
+        clearInterval(musicScheduler);
+        if(masterVolume)masterVolume.gain.setTargetAtTime(0,audioContext.currentTime,.16);
+        startButton.disabled=false;startButton.textContent="PLAY AGAIN";
+        setFeedback("");
+        document.getElementById("hud").style.opacity="0";
+      }
+      drawRunner(time);
+      // Small centered feedback instead of the former large top-left text blocks.
+      if(gameStarted && gameTime<feedbackUntil) {
+        ctx.textAlign="center";
+        ctx.shadowColor="#ff4eaf";ctx.shadowBlur=15;
+        ctx.font="bold 18px Trebuchet MS, Arial";
+        ctx.fillStyle=feedback.includes("PERFECT")||feedback.includes("GOOD")?"#80ffe4":"#ffe2f0";
+        ctx.fillText(feedback,400,100);ctx.shadowBlur=0;
+      }
+      if(!gameStarted && !gameFinished) {
+        ctx.save();roundedRect(257,127,287,84,12,"rgba(10,12,32,.77)","#c86cb080");
+        ctx.fillStyle="#f7f1ff";ctx.font="bold 19px Trebuchet MS, Arial";ctx.textAlign="center";
+        ctx.fillText("FEEL THE CITY",400,160);
+        ctx.font="13px Trebuchet MS, Arial";ctx.fillStyle="#abfce7";
+        ctx.fillText("SPACE to jump   ·   SHIFT to slide",400,186);ctx.restore();
+      }
+      if(gameFinished) {
+        // STEP 5 original translucent overlay is deliberately preserved.
+        ctx.save();ctx.fillStyle="rgba(8,11,29,.85)";ctx.fillRect(0,0,800,360);
+        ctx.textAlign="center";ctx.shadowColor="#ff64ac";ctx.shadowBlur=25;
+        ctx.fillStyle="#81ffe3";ctx.font="bold 34px Trebuchet MS, Arial";
+        ctx.fillText("RUN COMPLETE!",400,93);ctx.shadowBlur=0;
+        ctx.fillStyle="#fff";ctx.font="bold 29px Trebuchet MS, Arial";
+        ctx.fillText(`${score} / ${obstacles.length*100}`,400,155);
+        ctx.font="13px Trebuchet MS, Arial";ctx.fillStyle="#bcb7e0";ctx.fillText("FINAL SCORE",400,177);
+        ctx.font="bold 15px Trebuchet MS, Arial";ctx.fillStyle="#f9d4e8";
+        ctx.fillText(`PERFECT ${perfectHits}    GOOD ${goodHits}    HITS ${hits}`,400,225);
+        ctx.fillStyle="#81ffe3";ctx.font="14px Trebuchet MS, Arial";
+        ctx.fillText("Click PLAY AGAIN to retry",400,281);ctx.restore();
+      }
+      // Small HUD values updated outside the Canvas for better readability.
+      scoreValue.textContent=String(score).padStart(4,"0");
+      perfectValue.textContent=perfectHits;
+      goodValue.textContent=goodHits;
+      hitsValue.textContent=hits;
+      const upcoming=obstacles.find(o=>!o.attempted&&!o.checked);
+      if(gameStarted && upcoming) {
+        nextMove.textContent=upcoming.type==="spike"?"▲  SPACE · JUMP":"▰  SHIFT · SLIDE";
+        const remaining=Math.max(0,(upcoming.x-215)/scrollSpeed-gameTime);
+        countdown.textContent=`NEXT BEAT  ${remaining.toFixed(1)}s`;
+      } else if (!gameFinished) {nextMove.textContent="READY?";countdown.textContent="80 BPM · 14 obstacles";}
+      progress.style.width=`${Math.min(100,(distance/(finalObstacle.x+110))*100)}%`;
       requestAnimationFrame(draw);
     }
-
     requestAnimationFrame(draw);
   </script>
-
 </body>
 </html>
-
