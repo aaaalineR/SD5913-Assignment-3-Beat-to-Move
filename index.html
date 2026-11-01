@@ -60,11 +60,17 @@
 
     let audioContext = null;
     let gameStarted = false;
+    let gameFinished = false;
     let previousBeat = -1;
 
     const startButton = document.getElementById("startButton");
 
     startButton.addEventListener("click", async function() {
+      if (gameFinished) {
+        window.location.reload();
+        return;
+      }
+
       if (gameStarted) return;
 
       audioContext = new AudioContext();
@@ -301,6 +307,25 @@
 
       } // End of obstacles loop
 
+      
+      // Step 5: Check whether the run is complete
+      const finalObstacle = obstacles[obstacles.length - 1];
+
+      const finalObstacleRight =
+        finalObstacle.x - distance + obstacleWidth;
+
+      if (
+        !gameFinished &&
+        obstacles.every(obstacle => obstacle.checked) &&
+        finalObstacleRight < 137
+      ) {
+        gameFinished = true;
+        gameStarted = false;
+
+        startButton.disabled = false;
+        startButton.textContent = "PLAY AGAIN";
+      }
+
       // Runner animation
       let bob = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 2;
       let step = jumpHeight > 0 ? 0 : Math.sin(time * 0.015) * 11;
@@ -405,6 +430,53 @@
         110
       );
 
+
+      // Step 5: Game complete screen
+      if (gameFinished) {
+        ctx.save();
+
+        // Dark overlay
+        ctx.fillStyle = "rgba(10, 18, 35, 0.94)";
+        ctx.fillRect(0, 0, 800, 360);
+
+        ctx.textAlign = "center";
+
+        // Title
+        ctx.fillStyle = "#6ee7d2";
+        ctx.font = "bold 34px Arial";
+        ctx.fillText("RUN COMPLETE!", 400, 85);
+
+        // Final score
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 27px Arial";
+        ctx.fillText(
+          "SCORE: " + score + " / " +
+          (obstacles.length * 100),
+          400,
+          140
+        );
+
+        // Result breakdown
+        ctx.font = "17px Arial";
+        ctx.fillText(
+          "PERFECT: " + perfectHits +
+          "    GOOD: " + goodHits +
+          "    HITS: " + hits,
+          400,
+          195
+        );
+
+        // Restart instruction
+        ctx.fillStyle = "#6ee7d2";
+        ctx.font = "18px Arial";
+        ctx.fillText(
+          "Click PLAY AGAIN above to retry!",
+          400,
+          265
+        );
+
+        ctx.restore();
+      }
 
       requestAnimationFrame(draw);
     }
