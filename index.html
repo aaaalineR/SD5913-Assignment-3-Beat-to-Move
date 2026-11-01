@@ -1,1 +1,132 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beat to Move</title>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #101827;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h1 {
+      letter-spacing: 4px;
+    }
+
+    canvas {
+      width: 90%;
+      max-width: 800px;
+      border: 2px solid #6ee7d2;
+      border-radius: 12px;
+    }
+
+    p {
+      color: #aabbd0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>BEAT TO MOVE</h1>
+  <canvas id="game" width="800" height="360"></canvas>
+  <p>Step 1 — Our runner is moving!</p>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    let distance = 0;
+    let lastTime = 0;
+
+    function draw(time) {
+      const dt = Math.min((time - lastTime) / 1000, 0.05);
+      lastTime = time;
+
+      // Move the world
+      distance += dt * 180;
+
+      // Background
+      ctx.fillStyle = "#192640";
+      ctx.fillRect(0, 0, 800, 360);
+
+      // Moving city buildings
+      ctx.fillStyle = "#304363";
+
+      for (let i = 0; i < 12; i++) {
+        let x = ((i * 100 - distance * 0.25) % 1200 + 1200) % 1200 - 100;
+        let height = 65 + (i % 4) * 18;
+        ctx.fillRect(x, 270 - height, 65, height);
+      }
+
+      // Ground
+      ctx.fillStyle = "#435878";
+      ctx.fillRect(0, 270, 800, 90);
+
+      // Moving ground lines
+      ctx.fillStyle = "#8ba5c5";
+
+      for (let i = 0; i < 18; i++) {
+        let x = i * 62 - (distance % 62);
+        ctx.fillRect(x, 300, 32, 4);
+      }
+
+      // Runner animation
+      let bob = Math.sin(time * 0.015) * 2;
+      let step = Math.sin(time * 0.015) * 11;
+
+      ctx.strokeStyle = "#ffd39b";
+      ctx.fillStyle = "#ffd39b";
+      ctx.lineWidth = 6;
+      ctx.lineCap = "round";
+
+      // Head
+      ctx.beginPath();
+      ctx.arc(150, 216 + bob, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body
+      ctx.beginPath();
+      ctx.moveTo(150, 229 + bob);
+      ctx.lineTo(150, 249 + bob);
+
+      // Arms
+      ctx.moveTo(150, 235 + bob);
+      ctx.lineTo(139 + step * 0.5, 244 + bob);
+
+      ctx.moveTo(150, 235 + bob);
+      ctx.lineTo(161 - step * 0.5, 244 + bob);
+
+      // Legs
+      ctx.moveTo(150, 249 + bob);
+      ctx.lineTo(140 + step, 267 + bob);
+
+      ctx.moveTo(150, 249 + bob);
+      ctx.lineTo(160 - step, 267 + bob);
+
+      ctx.stroke();
+
+      // Status
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText("RUNNING...", 24, 32);
+
+      requestAnimationFrame(draw);
+    }
+
+    requestAnimationFrame(draw);
+  </script>
+
+</body>
+</html>
+
